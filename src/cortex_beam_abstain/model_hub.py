@@ -12,20 +12,20 @@ _HF_BASE = "https://huggingface.co/{model_id}/resolve/main/{filename}"
 
 
 def download_model(
-    model_id: str = "cdeust/cortex-abstention-v1",
+    model_id: str = "cdeust/cortex-beam-abstain-v1",
     cache_dir: Path | None = None,
 ) -> Path | None:
     """Download ONNX model and tokenizer from HuggingFace Hub.
 
     Args:
         model_id: HuggingFace model identifier.
-        cache_dir: Local cache directory. Defaults to ~/.cache/cortex-abstention.
+        cache_dir: Local cache directory. Defaults to ~/.cache/cortex-beam-abstain.
 
     Returns:
         Path to downloaded ONNX model file, or None on failure.
     """
     if cache_dir is None:
-        cache_dir = Path.home() / ".cache" / "cortex-abstention"
+        cache_dir = Path.home() / ".cache" / "cortex-beam-abstain"
 
     cache_dir.mkdir(parents=True, exist_ok=True)
     model_path = cache_dir / "model.onnx"

@@ -37,7 +37,7 @@ The model improves over time through community-contributed labeled data.
 ## Quick Start
 
 ```python
-from cortex_abstention import AbstentionClassifier
+from cortex_beam_abstain import AbstentionClassifier
 
 clf = AbstentionClassifier()  # auto-downloads model from HuggingFace
 
@@ -65,14 +65,14 @@ if clf.should_abstain("query", ["passage1", "passage2"], threshold=0.3):
 ### With MLX (Apple Silicon)
 
 ```bash
-pip install cortex-abstention[mlx]
+pip install cortex-beam-abstain[mlx]
 python scripts/train_mlx.py --data data/ --epochs 3 --lr 2e-5
 ```
 
 ### With PyTorch
 
 ```bash
-pip install cortex-abstention[torch]
+pip install cortex-beam-abstain[torch]
 python scripts/train_torch.py --data data/ --epochs 3 --lr 2e-5
 ```
 

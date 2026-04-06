@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cortex-abstention"
+name = "cortex-beam-abstain"
 version = "0.1.0"
 description = "Community-trained retrieval abstention classifier — teaches RAG to say 'I don't know'"
 readme = "README.md"
@@ -27,8 +27,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cdeust/cortex-abstention"
-Repository = "https://github.com/cdeust/cortex-abstention"
+Homepage = "https://github.com/cdeust/cortex-beam-abstain"
+Repository = "https://github.com/cdeust/cortex-beam-abstain"
 
 [project.optional-dependencies]
 mlx = [
@@ -46,11 +46,11 @@ dev = [
     "ruff>=0.4.0",
 ]
 all = [
-    "cortex-abstention[mlx,torch,dev]",
+    "cortex-beam-abstain[mlx,torch,dev]",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cortex_abstention"]
+packages = ["src/cortex_beam_abstain"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

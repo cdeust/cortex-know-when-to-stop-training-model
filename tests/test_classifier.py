@@ -1,6 +1,6 @@
 """Tests for the abstention classifier."""
 
-from cortex_abstention.classifier import AbstentionClassifier
+from cortex_beam_abstain.classifier import AbstentionClassifier
 
 
 class TestAbstentionClassifier:

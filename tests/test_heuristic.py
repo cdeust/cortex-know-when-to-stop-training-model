@@ -1,6 +1,6 @@
 """Tests for the heuristic fallback module."""
 
-from cortex_abstention.heuristic import cosine_gap_score, text_overlap_score
+from cortex_beam_abstain.heuristic import cosine_gap_score, text_overlap_score
 
 
 class TestCosineGapScore:

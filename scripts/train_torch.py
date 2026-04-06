@@ -27,7 +27,7 @@ try:
     )
 except ImportError:
     print("PyTorch/transformers not installed.")
-    print("Install with: pip install cortex-abstention[torch]")
+    print("Install with: pip install cortex-beam-abstain[torch]")
     sys.exit(1)
 
 
@@ -142,7 +142,8 @@ def main():
         metric_for_best_model="f1",
         logging_steps=10,
         save_total_limit=2,
-        fp16=torch.cuda.is_available(),
+        fp16=False,
+        use_cpu=True,
     )
 
     trainer = Trainer(

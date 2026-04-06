@@ -18,7 +18,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL_ID = "cdeust/cortex-abstention-v1"
+_DEFAULT_MODEL_ID = "cdeust/cortex-beam-abstain-v1"
 _DEFAULT_THRESHOLD = 0.3
 _MAX_LENGTH = 256
 
@@ -57,7 +57,7 @@ class AbstentionClassifier:
         else:
             logger.warning(
                 "Model not found, falling back to heuristic mode. "
-                "Install a model: pip install cortex-abstention[torch] "
+                "Install a model: pip install cortex-beam-abstain[torch] "
                 "then train or download from HuggingFace."
             )
             self._use_heuristic = True
@@ -71,14 +71,14 @@ class AbstentionClassifier:
             return None
 
         # Check local cache
-        cache = Path.home() / ".cache" / "cortex-abstention"
+        cache = Path.home() / ".cache" / "cortex-beam-abstain"
         local = cache / "model.onnx"
         if local.exists():
             return local
 
         # Try auto-download
         try:
-            from cortex_abstention.model_hub import download_model
+            from cortex_beam_abstain.model_hub import download_model
 
             return download_model(_DEFAULT_MODEL_ID, cache_dir=cache)
         except Exception as e:
@@ -123,7 +123,7 @@ class AbstentionClassifier:
             float in [0, 1]. High = relevant, low = irrelevant.
         """
         if self._use_heuristic:
-            from cortex_abstention.heuristic import text_overlap_score
+            from cortex_beam_abstain.heuristic import text_overlap_score
 
             return text_overlap_score(query, passage)
 
@@ -138,19 +138,23 @@ class AbstentionClassifier:
         encoded = self._tokenizer.encode(query, passage)
         ids = encoded.ids[:_MAX_LENGTH]
         mask = encoded.attention_mask[:_MAX_LENGTH]
-        type_ids = encoded.type_ids[:_MAX_LENGTH]
 
         # Pad to max length
         pad_len = _MAX_LENGTH - len(ids)
         ids = ids + [0] * pad_len
         mask = mask + [0] * pad_len
-        type_ids = type_ids + [0] * pad_len
 
+        # Build inputs dynamically based on what the model expects.
+        # DistilBERT only uses input_ids and attention_mask.
+        # BERT/RoBERTa add token_type_ids.
+        expected = {i.name for i in self._session.get_inputs()}
         inputs = {
             "input_ids": np.array([ids], dtype=np.int64),
             "attention_mask": np.array([mask], dtype=np.int64),
-            "token_type_ids": np.array([type_ids], dtype=np.int64),
         }
+        if "token_type_ids" in expected:
+            type_ids = encoded.type_ids[:_MAX_LENGTH] + [0] * pad_len
+            inputs["token_type_ids"] = np.array([type_ids], dtype=np.int64)
 
         outputs = self._session.run(None, inputs)
         logits = outputs[0][0]  # [irrelevant, relevant]

@@ -54,8 +54,8 @@ CI will validate your data automatically.
 ### Setup
 
 ```bash
-git clone https://github.com/cdeust/cortex-abstention.git
-cd cortex-abstention
+git clone https://github.com/cdeust/cortex-beam-abstain.git
+cd cortex-beam-abstain
 pip install -e ".[dev]"
 ```
 
