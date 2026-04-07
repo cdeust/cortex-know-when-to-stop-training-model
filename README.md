@@ -32,16 +32,34 @@ A binary classifier specifically trained to answer: **"Does this passage contain
 
 ## Current Status
 
-**v0.1 — first trained model, working but biased.**
+**v0.1 — working discriminator trained on 19k BEAM pairs.**
 
 | Metric | Score |
 |---|---|
-| Accuracy | 83.3% |
-| Precision | 72.6% |
-| Recall | 98.4% |
-| F1 | 0.836 |
+| Accuracy | 72.8% |
+| Precision | 67.6% |
+| Recall | 80.1% |
+| F1 | **0.733** |
 
-**Known limitation:** the model is biased toward "relevant" because the training data isn't balanced enough. Recall is excellent (catches almost all relevant passages) but precision needs work. v0.2 will rebalance with more hard negatives and retrain.
+Score range on diverse test queries: **0.215 to 0.830** (proper discrimination, not clustered around 0.5).
+
+### Training data composition
+
+Generated from BEAM splits 100K + 500K + 1M (90 conversations total):
+- **19,111 pairs** (9,199 relevant / 9,912 irrelevant — 48/52 balance)
+- **Hard negatives** mined via cosine similarity to query (semantically close but non-answering passages)
+- **Easy negatives** added for clear contrast signal
+- 1:1 ratio of hard to easy negatives per question
+
+### Training history
+
+| Version | Pairs | Approach | F1 | Notes |
+|---|---|---|---|---|
+| v1 | 1448 | random negatives | 0.836* | * biased — predicted "relevant" for everything |
+| v2 | 2198 | all hard negatives | 0.330 | swung to "irrelevant" for everything |
+| v3 | 2390 | balanced 3 epochs | 0.679 | undertrained |
+| v4 | 2390 | balanced 5 epochs | 0.690 | data too small |
+| **v5** | **19111** | **balanced 5 epochs** | **0.733** | **shipped as v0.1** |
 
 The model improves over time through community-contributed labeled data — see [Contributing](#contributing-data).
 

@@ -64,22 +64,89 @@ def _flatten_source_ids(raw) -> list[int]:
     return [int(x) for x in ids if isinstance(x, (int, float))]
 
 
+def _hard_negatives(
+    query: str,
+    turns: dict,
+    exclude_ids: set,
+    encoder,
+    n: int,
+) -> list[tuple[int, str]]:
+    """Find the n most semantically similar non-source turns.
+
+    Hard negatives are passages topically close to the query but
+    not the actual answer. These force the model to learn the
+    distinction between "looks relevant" and "is relevant".
+    """
+    import numpy as np
+
+    candidates = [(tid, content) for tid, content in turns.items() if tid not in exclude_ids]
+    if not candidates:
+        return []
+
+    q_emb = encoder.encode(query, convert_to_numpy=True, show_progress_bar=False)
+    cand_texts = [c[:500] for _, c in candidates]
+    cand_embs = encoder.encode(cand_texts, convert_to_numpy=True, show_progress_bar=False, batch_size=32)
+
+    # Cosine similarity
+    q_norm = np.linalg.norm(q_emb)
+    c_norms = np.linalg.norm(cand_embs, axis=1)
+    sims = (cand_embs @ q_emb) / (c_norms * q_norm + 1e-10)
+
+    # Top-n most similar
+    top_idx = np.argsort(-sims)[:n]
+    return [candidates[i] for i in top_idx]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate seed data from BEAM")
     parser.add_argument("--output", type=str, default="data/seed/beam.jsonl")
-    parser.add_argument("--split", default="100K")
+    parser.add_argument(
+        "--splits",
+        default="100K,500K,1M",
+        help="Comma-separated BEAM splits to use",
+    )
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument(
+        "--hard-negatives",
+        type=int,
+        default=3,
+        help="Number of hard negatives per question (default 3)",
+    )
+    parser.add_argument(
+        "--easy-negatives",
+        type=int,
+        default=1,
+        help="Number of random easy negatives per question (default 1)",
+    )
     args = parser.parse_args()
 
     try:
         from datasets import load_dataset
+        from sentence_transformers import SentenceTransformer
     except ImportError:
-        print("Install: pip install datasets")
+        print("Install: pip install datasets sentence-transformers")
         sys.exit(1)
 
-    ds = load_dataset("Mohammadta/BEAM", split=args.split)
+    print("Loading sentence-transformer for hard negative mining...")
+    # Force CPU — MPS has a Metal assertion bug with this model
+    encoder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+
+    # Load all requested splits and concatenate
+    all_convs = []
+    for split in args.splits.split(","):
+        split = split.strip()
+        try:
+            sub = load_dataset("Mohammadta/BEAM", split=split)
+            for c in sub:
+                all_convs.append(c)
+            print(f"  Loaded {split}: {len(sub)} conversations")
+        except Exception as e:
+            print(f"  Failed {split}: {e}")
+
     if args.limit:
-        ds = ds.select(range(min(args.limit, len(ds))))
+        all_convs = all_convs[: args.limit]
+    ds = all_convs
+    print(f"Total conversations: {len(ds)}")
 
     records = []
     for conv_idx, conv in enumerate(ds):
@@ -114,18 +181,23 @@ def main():
                 source_ids = _flatten_source_ids(q.get("source_chat_ids", []))
 
                 if ability == "abstention":
-                    # Pair with random turns as irrelevant
-                    for tid in turn_ids[:3]:
+                    # Abstention: hardest case — query asks about info NOT in
+                    # the conversation. The closest passages are the most
+                    # informative training signal (the model must learn to
+                    # reject them despite high topical similarity).
+                    hard = _hard_negatives(query, turns, set(), encoder, n=2)
+                    for _, content in hard:
                         records.append({
                             "query": query,
-                            "passage": turns[tid],
+                            "passage": content,
                             "label": "irrelevant",
                             "source": "beam",
                             "ability": ability,
                         })
                 elif source_ids:
-                    # Source turns are relevant
-                    for sid in source_ids[:2]:
+                    # All source turns are relevant (not just first 2)
+                    rel_count = 0
+                    for sid in source_ids:
                         if sid in turns:
                             records.append({
                                 "query": query,
@@ -134,10 +206,36 @@ def main():
                                 "source": "beam",
                                 "ability": ability,
                             })
-                    # Non-source turns as hard negatives
-                    neg_count = 0
-                    for tid in turn_ids:
-                        if tid not in source_ids and neg_count < 2:
+                            rel_count += 1
+
+                    # Negatives: balanced 1:1 with positives.
+                    # Mix of hard (semantically close) and easy (random).
+                    # Both teach important signals: hard = boundary, easy = clear noise.
+                    n_negs = max(rel_count, 2)
+                    n_hard = min(args.hard_negatives, n_negs - 1)
+                    n_easy = n_negs - n_hard
+
+                    exclude = set(source_ids)
+                    hard = _hard_negatives(query, turns, exclude, encoder, n=n_hard)
+                    for _, content in hard:
+                        records.append({
+                            "query": query,
+                            "passage": content,
+                            "label": "irrelevant",
+                            "source": "beam",
+                            "ability": ability,
+                        })
+
+                    if n_easy > 0:
+                        import random
+
+                        hard_ids = {h[0] for h in hard}
+                        non_source = [
+                            tid for tid in turn_ids
+                            if tid not in source_ids and tid not in hard_ids
+                        ]
+                        random.shuffle(non_source)
+                        for tid in non_source[:n_easy]:
                             records.append({
                                 "query": query,
                                 "passage": turns[tid],
@@ -145,7 +243,6 @@ def main():
                                 "source": "beam",
                                 "ability": ability,
                             })
-                            neg_count += 1
 
         if (conv_idx + 1) % 5 == 0:
             print(f"  [{conv_idx + 1}/{len(ds)}] {len(records)} pairs so far")
