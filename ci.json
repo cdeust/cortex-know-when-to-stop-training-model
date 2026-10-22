@@ -1,0 +1,8 @@
+{
+  "unit": "python3 -m pip install --quiet -e . pytest pytest-cov && python3 -m pytest -q --cov=cortex_beam_abstain --cov-report=xml",
+  "regression": "python3 scripts/validate_data.py",
+  "e2e": "bash -c 'echo \"e2e: no test exists yet (plan 2026-10-22)\"; exit 1'",
+  "environment": "bash scripts/ci_environment.sh",
+  "install": "bash scripts/ci_install.sh",
+  "version_file": "pyproject.toml"
+}
