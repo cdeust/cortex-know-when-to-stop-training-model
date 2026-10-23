@@ -4,7 +4,10 @@
 # classifier answers. Fails on the first error.
 set -euo pipefail
 : "${CI_OS:?CI_OS is unset}" "${CI_WORK:?CI_WORK is unset}"
-PY="$(command -v python3 || command -v python)"
+# shellcheck source-path=SCRIPTDIR
+source "$(dirname "${BASH_SOURCE[0]}")/ci_python.sh"
+PY="$(select_ci_python)"
+"$PY" --version
 "$PY" -m venv "$CI_WORK/venv"
 if [ -x "$CI_WORK/venv/bin/python" ]; then VPY="$CI_WORK/venv/bin/python"; else VPY="$CI_WORK/venv/Scripts/python.exe"; fi
 "$VPY" -m pip install --quiet .
