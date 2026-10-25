@@ -53,7 +53,7 @@ def validate_file(path: Path) -> list[str]:
                 errors.append(f"{path}:{i}: Passage too short")
 
             # Duplicate check
-            key = (rec["query"][:100], rec["passage"][:100])
+            key = (rec["query"], rec["passage"])
             if key in seen:
                 errors.append(f"{path}:{i}: Duplicate pair")
             seen.add(key)
